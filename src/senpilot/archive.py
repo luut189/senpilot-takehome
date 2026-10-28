@@ -11,8 +11,10 @@ def create_archive(result: ScrapeResult, directory: Path, maximum: int) -> Path 
     path = directory / f"{result.matter.matter_number}_{result.document_type.slug}.zip"
     root = directory.resolve()
     names = set()
+    created = False
     try:
         with zipfile.ZipFile(path, "x", compression=zipfile.ZIP_DEFLATED) as archive:
+            created = True
             for document in result.successful:
                 source = document.path
                 if source.is_symlink() or not source.resolve().is_relative_to(root):
@@ -28,5 +30,6 @@ def create_archive(result: ScrapeResult, directory: Path, maximum: int) -> Path 
                 raise AgentError("archive", "ZIP integrity check failed")
         return path
     except BaseException:
-        path.unlink(missing_ok=True)
+        if created:
+            path.unlink(missing_ok=True)
         raise

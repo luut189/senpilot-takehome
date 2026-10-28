@@ -1,7 +1,7 @@
 """Milestone 1: one-document proof, deliberately limited to Other Documents.
 
-The browser workflow was verified with playwright-cli. This Python port requires
-separate execution once Python Playwright is available; see docs/investigation.md.
+Historical investigation helper. Use senpilot.cli for the maintained pipeline;
+see README.md for setup and validation status.
 """
 
 import argparse
@@ -85,8 +85,7 @@ async def fetch_one(matter_number: str, output: Path, *, timeout_ms: int = 60_00
                     await button.wait_for()
                     try:
                         async with page.expect_download(timeout=timeout_ms) as event:
-                            await button.click()
-                            await dialog.get_by_role("button", name="Close", exact=True).click()
+                            await button.click(no_wait_after=True)
                         download = await event.value
                         async with asyncio.timeout(timeout_ms / 1000):
                             await download.save_as(output / safe_filename(expected_name))

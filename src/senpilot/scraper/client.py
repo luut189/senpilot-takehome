@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 import shutil
+from contextlib import suppress
 from pathlib import Path
 
 from playwright.async_api import Error as PlaywrightError
@@ -27,7 +28,11 @@ ROW_DATA = """rows => rows.map(row => ({
 
 def parse_row(raw: dict) -> DocumentMetadata:
     fields = [v for v in raw["fields"] if v]
-    ids = [v for v in fields if re.fullmatch(r"(?:[0-9]{5,}|[A-Z]+-[0-9]+(?:\.[0-9]+)?)", v)]
+    ids = [
+        v
+        for v in fields
+        if re.fullmatch(r"(?:[0-9]{5,}|[A-Z]+-[0-9]+(?:\.[0-9]+)?(?:\(C\))?(?:-[ivxlcdm]+)?)", v)
+    ]
     extensions = [v for v in fields if re.fullmatch(r"\.[A-Za-z0-9]{1,12}", v)]
     dates = [v for v in fields if re.fullmatch(r"[0-9]{2}/[0-9]{2}/[0-9]{4}", v)]
     security = [v for v in fields if v.lower() in ("public", "confidential", "restricted")]
@@ -72,13 +77,17 @@ async def save_download(download, path: Path, spool: Path, maximum: int, timeout
             if not 0 < path.stat().st_size <= maximum:
                 raise AgentError("file_size", "Downloaded file is empty or too large")
     except BaseException:
-        await download.cancel()
+        with suppress(PlaywrightError):
+            await download.cancel()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
         path.unlink(missing_ok=True)
         raise
     finally:
-        await download.delete()
+        # Chromium may already have removed a cancelled artifact. Cleanup must
+        # not replace the original size/timeout failure with a protocol error.
+        with suppress(PlaywrightError):
+            await download.delete()
 
 
 class Scraper:
@@ -90,6 +99,7 @@ class Scraper:
     ) -> ScrapeResult:
         if not 1 <= limit <= 10:
             raise ValueError("limit must be between 1 and 10")
+        limit = min(limit, self.settings.max_files)
         output.mkdir(parents=True, exist_ok=True)
         spool = output / ".browser"
         spool.mkdir(exist_ok=False)
@@ -193,6 +203,8 @@ class Scraper:
                 },
             )
             try:
+                if doc.security and doc.security.lower() in ("confidential", "restricted"):
+                    raise AgentError("restricted_document", "Document is not listed as public")
                 if total >= self.settings.max_total_bytes:
                     raise AgentError("total_size", "Total download budget exhausted")
                 await scroller.evaluate("(e, y) => { e.scrollTop = y; }", doc.position * height)
@@ -249,14 +261,17 @@ class Scraper:
                 async with page.expect_download(
                     timeout=self.settings.download_timeout * 1000
                 ) as event:
-                    await button.click()
-                    # WebDirect holds the export request while this dialog is
-                    # open. Close it before awaiting the download event.
-                    await dialog.get_by_role("button", name="Close", exact=True).click()
-                    log.info(
-                        "download_dialog_closed", extra={"document_number": doc.document_number}
-                    )
+                    # The filename navigates a hidden frame. Do not wait for
+                    # that navigation as well as the download event, and keep
+                    # the dialog/frame alive until the transfer has completed.
+                    await button.click(no_wait_after=True)
                 download = await event.value
+                if safe_filename(download.suggested_filename) != safe_filename(name):
+                    # A late event from an earlier timed-out export must never
+                    # be attributed to the document currently being attempted.
+                    await download.cancel()
+                    await download.delete()
+                    raise AgentError("file_download", "Download filename did not match the dialog")
                 log.info(
                     "download_transfer_started", extra={"document_number": doc.document_number}
                 )
@@ -272,5 +287,6 @@ class Scraper:
                     close = dialog.get_by_role("button", name=re.compile(r"^(Close|OK)$"))
                     if await close.count() == 1:
                         await close.click()
+                        await dialog.wait_for(state="hidden")
                     else:
                         raise AgentError("website_structure", "Cannot close download dialog safely")

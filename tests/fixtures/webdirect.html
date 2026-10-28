@@ -7,6 +7,8 @@
 const params = new URL(location.href).searchParams;
 const fail = Number(params.get('fail') || -1);
 const count = Number(params.get('count') || 12);
+let pendingDownload;
+function closeDownload(button) { clearTimeout(pendingDownload); button.parentElement.remove(); }
 function overview() {
   document.body.innerHTML = '<div class="fm_object_286"><div class="text">M12205</div></div>' +
     '<div id="b0p0o290i0i0r1">Synthetic matter</div>' +
@@ -35,14 +37,17 @@ function showDownload(n) {
   const dialog = document.createElement('div');
   dialog.role = 'dialog';
   dialog.innerHTML = `<button onclick="download(${n})">${10000+n}.pdf</button>
-    <button onclick="this.parentElement.remove()">Close</button>`;
+    <button onclick="closeDownload(this)">Close</button>`;
   document.body.append(dialog);
 }
 function download(n) {
   if (n === fail) return;
+  // Closing the export dialog before the transfer starts cancels its frame.
+  pendingDownload = setTimeout(() => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['%PDF-1.4\nfixture '+n+'\n%%EOF'], {type:'application/pdf'}));
   a.download = String(10000+n)+'.pdf';
   document.body.append(a); a.click(); a.remove();
+  }, 150);
 }
 </script></body></html>

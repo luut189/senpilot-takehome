@@ -64,3 +64,11 @@ def test_summary_reports_partial(sample_result):
     text = summary(sample_result, True)
     assert "attempted 2 and successfully downloaded 1" in text
     assert "99999 (download_timeout)" in text
+
+
+def test_archive_collision_preserves_existing_file(sample_result, tmp_path):
+    path = tmp_path / "M12205_other_documents.zip"
+    path.write_bytes(b"existing archive must survive")
+    with pytest.raises(FileExistsError):
+        create_archive(sample_result, tmp_path, 100000)
+    assert path.read_bytes() == b"existing archive must survive"

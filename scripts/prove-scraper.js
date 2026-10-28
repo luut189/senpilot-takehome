@@ -53,8 +53,7 @@ async (page) => {
       const [download] = await Promise.all([
         page.waitForEvent('download', {timeout: 60000}),
         (async () => {
-          await button.click();
-          await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+          await button.click({noWaitAfter: true});
         })(),
       ]);
       await download.saveAs(`proof-downloads/repro-${name}`);

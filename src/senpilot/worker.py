@@ -50,8 +50,8 @@ class Worker:
         message = InboundMessage.model_validate_json(row["message"])
         result = JobResult()
         sending = False
-        self.settings.temp_root.mkdir(parents=True, exist_ok=True)
         try:
+            self.settings.temp_root.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(
                 prefix=f"{job_id}-", dir=self.settings.temp_root
             ) as tmp:

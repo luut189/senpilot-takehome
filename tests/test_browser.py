@@ -25,6 +25,18 @@ def test_unexpected_row_fails_closed():
         parse_row({"fields": ["102674", "title", "unexpected field", ".pdf"], "y": 0, "height": 68})
 
 
+@pytest.mark.parametrize("identifier", ["H-4(C)", "H-4(C)-i", "H-4(C)-ii", "H-4(C)-iii"])
+def test_observed_confidential_exhibit_labels(identifier):
+    doc = parse_row(
+        {
+            "fields": ["Confidential attachment", "05/22/2025", "Confidential", identifier, ".pdf"],
+            "y": 272,
+            "height": 68,
+        }
+    )
+    assert doc.document_number == identifier and doc.security == "Confidential"
+
+
 @pytest.mark.asyncio
 async def test_captured_live_exhibit_dom():
     from senpilot.scraper.client import ROW_DATA
@@ -44,14 +56,20 @@ async def test_captured_live_exhibit_dom():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failure", [False, True])
+@pytest.mark.parametrize("failure", [False, True, "restricted", "wrong_filename"])
 async def test_virtual_order_limit_and_partial_download(tmp_path, settings, failure):
     settings.download_timeout = 1
     settings.navigation_timeout = 3
     fixture = Path(__file__).with_name("fixtures").joinpath("webdirect.html").read_text()
-    if failure:
+    if failure is True:
         fixture = fixture.replace(
             "const fail = Number(params.get('fail') || -1);", "const fail = 1;"
+        )
+    elif failure == "restricted":
+        fixture = fixture.replace("'Public'", "'Confidential'")
+    elif failure == "wrong_filename":
+        fixture = fixture.replace(
+            "a.download = String(10000+n)+'.pdf';", "a.download = 'late.pdf';"
         )
     spool = tmp_path / ".browser"
     spool.mkdir()
@@ -74,9 +92,14 @@ async def test_virtual_order_limit_and_partial_download(tmp_path, settings, fail
             assert [d.document_number for d in result.documents] == [
                 str(10000 + i) for i in range(10)
             ]
-            assert len(result.successful) == (9 if failure else 10)
-            if failure:
+            expected = {False: 10, True: 9, "restricted": 0, "wrong_filename": 0}
+            assert len(result.successful) == expected[failure]
+            if failure is True:
                 assert result.documents[1].error == "download_timeout"
+            elif failure == "restricted":
+                assert all(d.error == "restricted_document" for d in result.documents)
+            elif failure == "wrong_filename":
+                assert all(d.error == "file_download" for d in result.documents)
             assert all(d.path.stat().st_size > 0 for d in result.successful)
         finally:
             await browser.close()
