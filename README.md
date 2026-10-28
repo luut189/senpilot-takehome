@@ -59,6 +59,9 @@ The non-root container includes Chromium. Compose persists SQLite in the `jobs`
 volume, limits memory to 2 GB, and provides a 512 MB temporary filesystem. Run
 **one instance and one Uvicorn worker**.
 
+Chromium's configuration, Crashpad database, and cache use writable directories
+under `/tmp`; the rest of the container filesystem remains read-only.
+
 Expose HTTPS through a reverse proxy targeting `http://127.0.0.1:8000`. The port
 binds to host localhost. For a containerized proxy, use a shared Docker network
 and `http://agent:8000`. For temporary development, use `ngrok http 8000` or

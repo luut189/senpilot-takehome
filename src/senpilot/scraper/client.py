@@ -30,6 +30,8 @@ def browser_diagnostics(exc: Exception) -> dict[str, str]:
         reason = "browser_not_installed"
     elif "Missing dependencies" in message or "error while loading shared libraries" in message:
         reason = "browser_dependencies_missing"
+    elif "chrome_crashpad_handler: --database is required" in message:
+        reason = "crashpad_database_unavailable"
     elif "Target page, context or browser has been closed" in message:
         reason = "browser_closed"
     elif "crash" in message.lower():

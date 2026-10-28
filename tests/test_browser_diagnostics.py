@@ -16,6 +16,13 @@ from senpilot.scraper.client import Scraper, browser_diagnostics
     [
         (
             PlaywrightError(
+                "BrowserType.launch: Target page, context or browser has been closed\n"
+                "[pid=114][err] chrome_crashpad_handler: --database is required"
+            ),
+            "crashpad_database_unavailable",
+        ),
+        (
+            PlaywrightError(
                 "Page.goto: net::ERR_CONNECTION_RESET at https://example.com/?secret=hidden"
             ),
             "ERR_CONNECTION_RESET",

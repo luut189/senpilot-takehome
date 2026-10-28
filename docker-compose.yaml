@@ -10,6 +10,9 @@ services:
       TEMP_ROOT: /tmp/senpilot
       CHROMIUM_CHANNEL: chromium
       HEADLESS: "true"
+      # Chromium's Crashpad database must be writable with a read-only root.
+      XDG_CONFIG_HOME: /tmp/chromium-config
+      XDG_CACHE_HOME: /tmp/chromium-cache
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

@@ -14,6 +14,7 @@ RUN uv sync --frozen --no-dev --no-install-project \
 COPY --chown=agent:agent README.md ./
 COPY --chown=agent:agent src ./src
 RUN uv sync --frozen --no-dev
+ENV XDG_CONFIG_HOME=/tmp/chromium-config XDG_CACHE_HOME=/tmp/chromium-cache
 USER agent
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "senpilot.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--limit-concurrency", "20"]
