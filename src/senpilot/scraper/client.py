@@ -17,6 +17,32 @@ from senpilot.scraper.validation import parse_counts, safe_filename
 
 log = logging.getLogger(__name__)
 
+
+def browser_diagnostics(exc: Exception) -> dict[str, str]:
+    """Extract actionable codes without logging URLs, browser args or page text."""
+    message = str(exc)
+    network = re.search(r"\bnet::(ERR_[A-Z0-9_]+)\b", message)
+    operation = re.match(r"([A-Za-z]+\.[A-Za-z_]+):", message)
+    reason = "playwright_error"
+    if network:
+        reason = network.group(1)
+    elif "Executable doesn't exist" in message:
+        reason = "browser_not_installed"
+    elif "Missing dependencies" in message or "error while loading shared libraries" in message:
+        reason = "browser_dependencies_missing"
+    elif "Target page, context or browser has been closed" in message:
+        reason = "browser_closed"
+    elif "crash" in message.lower():
+        reason = "browser_crashed"
+    elif isinstance(exc, (PlaywrightTimeout, TimeoutError)):
+        reason = "timeout"
+    return {
+        "error_type": type(exc).__name__,
+        "error_reason": reason,
+        "operation": operation.group(1) if operation else "unknown",
+    }
+
+
 # FileMaker's rows are recycled. Read the rendered position along with all field
 # values atomically, then address a document by identity, never a stale row index.
 ROW_DATA = """rows => rows.map(row => ({
@@ -103,6 +129,7 @@ class Scraper:
         output.mkdir(parents=True, exist_ok=True)
         spool = output / ".browser"
         spool.mkdir(exist_ok=False)
+        stage = "browser_launch"
         try:
             async with asyncio.timeout(self.settings.job_timeout):
                 async with async_playwright() as pw:
@@ -112,23 +139,45 @@ class Scraper:
                         headless=self.settings.headless,
                     )
                     try:
+                        stage = "browser_context"
                         context = await browser.new_context(accept_downloads=True)
                         page = await context.new_page()
                         page.set_default_timeout(self.settings.navigation_timeout * 1000)
+                        stage = "matter_fetch"
                         return await self._fetch(page, request, output, spool, limit)
                     finally:
                         await browser.close()
         except AgentError:
             raise
-        except (PlaywrightTimeout, TimeoutError) as exc:
-            raise AgentError("navigation_timeout", "The regulatory site timed out") from exc
-        except PlaywrightError as exc:
-            raise AgentError("browser_session", "Browser or website session failed") from exc
+        except (PlaywrightError, TimeoutError) as exc:
+            category = (
+                "navigation_timeout"
+                if isinstance(exc, (PlaywrightTimeout, TimeoutError))
+                else "browser_session"
+            )
+            log.error(
+                "browser_failed",
+                extra={
+                    "matter_number": request.matter_number,
+                    "document_type": request.document_type.value,
+                    "stage": stage,
+                    "error_category": category,
+                    **browser_diagnostics(exc),
+                },
+            )
+            message = (
+                "The regulatory site timed out"
+                if category == "navigation_timeout"
+                else "Browser or website session failed"
+            )
+            raise AgentError(category, message) from exc
         finally:
             shutil.rmtree(spool, ignore_errors=True)
 
     async def _fetch(self, page, request, output, spool, limit):
+        log.info("scrape_stage", extra={"stage": "site_navigation"})
         await page.goto(URL, wait_until="domcontentloaded")
+        log.info("scrape_stage", extra={"stage": "matter_lookup"})
         await page.locator(DIRECT_INPUT).dblclick()
         editor = page.locator(DIRECT_EDITOR)
         await editor.fill(request.matter_number)
@@ -143,6 +192,7 @@ class Scraper:
             if re.search(r"no matching records|not found", text, re.I):
                 raise AgentError("matter_not_found", "The requested matter was not found")
             raise AgentError("website_structure", "Unexpected matter lookup dialog")
+        log.info("scrape_stage", extra={"stage": "matter_metadata"})
         fields = {
             key: (await page.locator(selector).inner_text()).strip() or None
             for key, selector in MATTER_FIELDS.items()
@@ -158,6 +208,7 @@ class Scraper:
         wanted = min(limit, counts[request.document_type])
         if wanted == 0:
             return result
+        log.info("scrape_stage", extra={"stage": "document_listing"})
         await page.get_by_role(
             "button", name=re.compile(rf"^{re.escape(request.document_type.value)} -")
         ).click()

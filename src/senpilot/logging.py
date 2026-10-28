@@ -19,6 +19,10 @@ class JsonFormatter(logging.Formatter):
             "duration",
             "error_category",
             "document_number",
+            "stage",
+            "error_type",
+            "error_reason",
+            "operation",
         ):
             if hasattr(record, key):
                 result[key] = getattr(record, key)

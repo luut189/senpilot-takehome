@@ -124,7 +124,7 @@ new email after fixing the cause; replaying the same ID remains a duplicate.
 Tests use browser fixtures and mocked Resend responses, including the complete
 signed-webhook → browser → ZIP → email workflow. `make live-test` is opt-in.
 
-Latest validation: **67 tests passed**, one optional live test skipped, and Ruff
+Latest validation: **73 tests passed**, one optional live test skipped, and Ruff
 passed. Docker build, non-root Chromium, SQLite, API health, and shutdown passed.
 There is one upstream Starlette TestClient deprecation warning.
 
