@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Reduced behavioral fixture based on inspected FileMaker DOM. Synthetic
+     matter/documents; not a claim of a complete captured WebDirect application. -->
+<html><head><style>[role=dialog] {position:fixed;inset:20px;z-index:1000;background:white;}</style></head><body>
+<div class="fm_object_254"><div class="text" contenteditable="true" onblur="overview()"></div></div>
+<script>
+const params = new URL(location.href).searchParams;
+const fail = Number(params.get('fail') || -1);
+const count = Number(params.get('count') || 12);
+function overview() {
+  document.body.innerHTML = '<div class="fm_object_286"><div class="text">M12205</div></div>' +
+    '<div id="b0p0o290i0i0r1">Synthetic matter</div>' +
+    [287,289,292,294,295,298].map(n => `<div class="fm_object_${n}"><div class="text"></div></div>`).join('') +
+    ['Exhibits','Key Documents','Other Documents','Transcripts','Recordings'].map(c =>
+      `<button onclick="listing()">${c} - ${c==='Other Documents'? count:0}</button>`).join('');
+}
+function listing() {
+  const grid = document.createElement('div');
+  grid.innerHTML = `<div class="v-grid-scroller-vertical" style="height:200px;overflow:auto"
+    onscroll="render(Math.floor(this.scrollTop/50))"><div style="height:${count*50}px"></div></div>
+    <table role="grid" aria-rowcount="${count}"><tbody id="rows"></tbody></table>`;
+  document.body.append(grid);
+  render(0);
+}
+function render(start) {
+  document.getElementById('rows').innerHTML = Array.from({length: Math.min(4,count-start)}, (_,i) => {
+    const n = start+i;
+    const values = [String(10000+n), 'Fixture document '+n, '04/07/2025', 'Public', '.pdf'];
+    return `<tr role="row" style="transform:translate3d(0px, ${n*50}px, 0px);height:50px"><td>` +
+      values.map(v=>`<div class="fm-textarea"><div class="text">${v}</div></div>`).join('') +
+      `<button onclick="showDownload(${n})">GO GET IT</button></td></tr>`;
+  }).join('');
+}
+function showDownload(n) {
+  const dialog = document.createElement('div');
+  dialog.role = 'dialog';
+  dialog.innerHTML = `<button onclick="download(${n})">${10000+n}.pdf</button>
+    <button onclick="this.parentElement.remove()">Close</button>`;
+  document.body.append(dialog);
+}
+function download(n) {
+  if (n === fail) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['%PDF-1.4\nfixture '+n+'\n%%EOF'], {type:'application/pdf'}));
+  a.download = String(10000+n)+'.pdf';
+  document.body.append(a); a.click(); a.remove();
+}
+</script></body></html>

@@ -1,0 +1,12 @@
+.git
+.venv
+.env
+.playwright-cli
+proof-downloads
+downloads
+data
+tests
+docs
+__pycache__
+.pytest_cache
+.ruff_cache

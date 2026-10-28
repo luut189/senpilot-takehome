@@ -1,0 +1,40 @@
+{
+  "observed_at": "2026-10-27",
+  "source": "https://uarb.novascotia.ca/fmi/webd/UARB15",
+  "runner": "playwright-cli Chromium; individual live steps",
+  "matter": {
+    "matter_number": "M12205",
+    "title": "Halifax Regional Water Commission - Windsor Street Exchange Redevelopment Project - $69,275,000",
+    "matter_type": "Capital Expenditure Approvals",
+    "status": "Closed",
+    "category": "Water",
+    "date_received_raw": "04/07/2025",
+    "decision_date_raw": "10/23/2025",
+    "outcome": "Directions given"
+  },
+  "counts": {
+    "Exhibits": 13,
+    "Key Documents": 6,
+    "Other Documents": 43,
+    "Transcripts": 0,
+    "Recordings": 0
+  },
+  "document": {
+    "document_number": "102674",
+    "title": "Board Order",
+    "date_raw": "07/08/2026",
+    "security": "Public",
+    "category": "Other Documents",
+    "displayed_position": 1,
+    "filename": "102674.pdf",
+    "size_bytes": 170571,
+    "sha256": "6a3b3b90596df09605d7a978caf32d7bdbefb4f0b68648388733c2376d45757f",
+    "playwright_failure": null
+  },
+  "repeat": {
+    "fresh_session": true,
+    "initial_download_event_timed_out": true,
+    "retry_same_document_succeeded": true,
+    "sha256_matches": true
+  }
+}
